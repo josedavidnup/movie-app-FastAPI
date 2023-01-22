@@ -1,9 +1,34 @@
-from fastapi import FastAPI, Body, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, Body, HTTPException, Request, Path, Query
+from fastapi.responses import HTMLResponse, JSONResponse
+from pydantic import BaseModel, Field
+from typing import Optional
 
 app = FastAPI()
 app.title = "My FastAPI app"
 app.version = "0.0.1"
+
+
+class Movie(BaseModel):
+    # id: int | None = None
+    id: Optional[int] = None
+    title: str = Field(min_length=5, max_length=15)
+    overview: str = Field(min_length=15, max_length=50)
+    year: int = Field(le=2022)
+    rating: float = Field(ge=1, le=10)
+    category: str = Field(min_length=5, max_length=15)
+
+    class Config:
+        schema_extra = {
+            "example": {
+                "id": 1,
+                "title": "Mi pelicula",
+                "overview": "Descripcion de la pelicula vacia",
+                "year": 2022,
+                "rating": 9.8,
+                "category": "action",
+            }
+        }
+
 
 movies = [
     {
@@ -56,11 +81,11 @@ def message():
 
 @app.get("/movies", tags=["movies"])
 def get_movies():
-    return movies
+    return JSONResponse(content=movies)
 
 
 @app.get("/movies/{id}", tags=["movies"])
-def get_movie(id: int):
+def get_movie(id: int = Path(ge=1, le=2000)):
     movie = list(filter(lambda x: x["id"] == id, movies))
     # for item in movies:
     #     if item["id"] == id:
@@ -68,38 +93,22 @@ def get_movie(id: int):
     # return 'no existe'
     # raise HTTPException(status_code=404, detail="Movie not found")
     # return movie if len(movie) > 0 else "No existe"
-    return "No se encontró la película" if not movie else movie[0]
+    return "No se encontró la película" if not movie else JSONResponse(content=movie[0])
     # return movie[0] or "No hay nada que ver"
 
 
 @app.get("/movies/", tags=["movies"])
 # def get_movies_by_category(category: str, year: int):
-def get_movies_by_category(category: str):
+def get_movies_by_category(category: str = Query(min_length=5, max_length=15)):
     # return [ item for item in movies if item['category'] == category ]
     movie = list(filter(lambda x: x["category"].lower() == category.lower(), movies))
-    return movie
+    return JSONResponse(content=movie)
 
 
 @app.post("/movies", tags=["movies"])
-def create_movie(
-    id: int = Body(),
-    title: str = Body(),
-    overview: str = Body(),
-    year: int = Body(),
-    rating: float = Body(),
-    category: str = Body(),
-):
-    movies.append(
-        {
-            "id": id,
-            "title": title,
-            "overview": overview,
-            "year": year,
-            "rating": rating,
-            "category": category,
-        }
-    )
-    return movies
+def create_movie(movie: Movie):
+    movies.append(movie)
+    return JSONResponse(content={"message": "Se creo la pelicula"})
     # De esta forma no se valida los datos -------->
     # from fastapi import Request
     # movie = await request.json()
@@ -114,23 +123,23 @@ def create_movie(
 
 
 @app.put("/movies/{id}", tags=["movies"])
-def update_movie(
-    id: int,
-    title: str = Body(),
-    overview: str = Body(),
-    year: int = Body(),
-    rating: float = Body(),
-    category: str = Body(),
-):
-
+def update_movie(id: int, movie: Movie):
+    # for item in movies: ----------> Dict
+    #     if item["id"] == id:
+    #         item["title"] = movie.title
+    #         item["overview"] = movie.overview
+    #         item["year"] = movie.year
+    #         item["rating"] = movie.rating
+    #         item["category"] = movie.category
+    #         return movies
     for item in movies:
-        if item["id"] == id:
-            item["title"] = title
-            item["overview"] = overview
-            item["year"] = year
-            item["rating"] = rating
-            item["category"] = category
-            return movies
+        if item.id == id:
+            item.title = movie.title
+            item.overview = movie.overview
+            item.year = movie.year
+            item.rating = movie.rating
+            item.category = movie.category
+            return JSONResponse(content={"message": "Se modifico la pelicula"})
 
 
 @app.delete("/movies/{id}", tags=["movies"])
@@ -139,55 +148,4 @@ def delete_movie(id: int):
     for item in movies:
         if item["id"] == id:
             movies.remove(item)
-            return movies
-
-
-# @app.put("/movies/{id}", tags=["movies"])
-# async def update_movie(id: int, request: Request):
-#     movie = await request.json()
-#     for index, item in enumerate(movies):
-#         if item["id"] == id:
-#             movies[index].update(movie)
-#             return movies[index]
-
-#     raise HTTPException(status_code=404, detail="Movie not found")
-
-
-# @app.delete("/movies/{id}", tags=["movies"])
-# async def delete_movie(id: int):
-#     for index, item in enumerate(movies):
-#         if item["id"] == id:
-#             del movies[index]
-#             return {"status": "deleted movie"}
-
-#     raise HTTPException(status_code=404, detail="Movie not found")
-
-
-# @app.put('/movies', tags=['movies'])
-# def update_movie(id: int, title: str= Body(), overview: str= Body(), year: str= Body(), rating: float= Body(), category: str = Body()):
-
-#     movie = [(idx) for idx, mo in enumerate(movies) if mo['id'] == id]
-
-#     if(len(movie) > 0):
-#         movies[movie[-1]] = {
-#             "id": id,
-#             "title": title,
-#             "overview": overview,
-#             "year": year,
-#             "rating": rating,
-#             "category": category
-#         }
-
-#         return movies
-#     else:
-#         raise HTTPException(status_code=404, detail="Movie not found")
-
-# @app.delete('/movies/{id}', tags=['movies'])
-# def delete_movie(id: int):
-
-#     movies_by_id = list(filter(lambda x: x['id'] == id , movies))
-#     if(len(movies_by_id) > 0):
-#         movies.remove(movies_by_id[-1])
-#         return movies
-#     else:
-#         raise HTTPException(status_code=404, detail="Movie not found")
+            return JSONResponse(content={"message": "Se elimino la pelicula"})
