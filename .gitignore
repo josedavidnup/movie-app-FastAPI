@@ -11,6 +11,7 @@
 *.db-shm
 *.db-wal
 *.sqlite
+database.sqlite
 
 ### Linux ###
 *~
